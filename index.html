@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Magic Mirror V3 - ELITE EDITION</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Noto+Sans+JP:wght@300;500&family=Space+Grotesk:wght@300;500;700&display=swap" rel="stylesheet">
+    <script defer src="https://cdn.jsdelivr.net/npm/face-api.js"></script>
+
+    <style>
+        :root {
+            --elite-gold: #d4af37; --elite-silver: #c0c0c0;
+            --neon-cyan: #00f3ff; --neon-green: #0f0; --neon-red: #ff3131;
+            --bg-deep: #050505; --glass: rgba(255, 255, 255, 0.05);
+            --border: rgba(255, 255, 255, 0.08); --transit: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        body, html {
+            margin: 0; padding: 0; background: var(--bg-deep); color: white;
+            font-family: 'Space Grotesk', sans-serif;
+            overflow: hidden; height: 100dvh; display: flex; flex-direction: column;
+            -webkit-user-select: none; user-select: none;
+        }
+
+        .aurora-bg {
+            position: fixed; inset: 0;
+            background: radial-gradient(circle at 10% 20%, #1a0b2e 0%, transparent 40%),
+                        radial-gradient(circle at 90% 80%, #071a24 0%, transparent 40%);
+            filter: blur(80px); z-index: -1; opacity: 0.6;
+            animation: moveAurora 15s infinite alternate linear; transition: opacity 1s ease;
+        }
+        body.amoled-theme .aurora-bg { opacity: 0; }
+
+        @keyframes moveAurora {
+            0% { transform: scale(1) translate(0, 0); }
+            100% { transform: scale(1.1) translate(15px, 25px); }
+        }
+
+        .glass-panel {
+            background: var(--glass); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--border); border-radius: 20px; box-shadow: 0 8px 32px 0 rgba(0,0,0,0.8);
+        }
+
+        .glass-btn {
+            background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
+            color: var(--elite-silver); padding: 12px 24px; border-radius: 12px;
+            cursor: pointer; transition: var(--transit); font-family: 'Orbitron', sans-serif; font-size: 12px;
+        }
+        .glass-btn:active { background: rgba(255,255,255,0.1); transform: scale(0.96); }
+
+        #splash-screen {
+            position: fixed; inset: 0; background: black; display: flex; flex-direction: column;
+            align-items: center; justify-content: center; z-index: 10000; transition: opacity 1s ease;
+        }
+        .loader-ring {
+            width: 100px; height: 100px; border: 2px solid var(--neon-cyan); border-radius: 35%;
+            animation: rotate 4s infinite linear; box-shadow: 0 0 15px var(--neon-cyan);
+        }
+        @keyframes rotate { 100% { transform: rotate(360deg); } }
+
+        .app-container { display: flex; flex-direction: column; height: 100dvh; }
+
+        header {
+            height: 60px; flex-shrink: 0; padding: 0 15px; display: flex;
+            justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); z-index: 100;
+        }
+        .logo { font-family: 'Orbitron', sans-serif; font-size: 14px; color: var(--elite-gold); font-weight: 700; }
+
+        main {
+            flex: 1; overflow-y: auto; overflow-x: hidden;
+            display: flex; flex-direction: column; padding-bottom: 10px;
+        }
+        .content-section { display: none; padding: 10px; animation: fadeIn 0.4s ease; flex: 1; }
+        .content-section.active { display: flex; flex-direction: column; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        #camera-container {
+            position: relative; width: 100%; aspect-ratio: 9/16; max-height: 55vh;
+            overflow: hidden; border-radius: 20px; background: black; border: 1px solid rgba(0, 243, 255, 0.1); flex-shrink: 0;
+        }
+        video, canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; }
+        canvas { z-index: 5; pointer-events: none; }
+        
+        .scan-line {
+            position: absolute; top: 0; left: 0; width: 100%; height: 2px;
+            background: var(--neon-cyan); opacity: 0.5; animation: scanMove 4s infinite linear; z-index: 6;
+        }
+        @keyframes scanMove { 0% { top: 0; } 100% { top: 100%; } }
+
+        #capture-btn {
+            position: absolute; bottom: 15px; left: 50%; transform: translateX(-50%);
+            width: 60px; height: 60px; border-radius: 50%; border: 3px solid var(--elite-gold);
+            background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(10px); z-index: 10; cursor: pointer;
+        }
+
+        .filter-title { font-size: 10px; margin: 15px 0 5px; color: #888; font-family: 'Orbitron'; letter-spacing: 1px; }
+        .filter-bar { display: flex; overflow-x: auto; gap: 12px; padding: 5px 0 15px 0; scroll-behavior: smooth; }
+        .filter-bar::-webkit-scrollbar { display: none; }
+        
+        .filter-slot {
+            width: 70px; height: 80px; flex-shrink: 0; background: rgba(255, 255, 255, 0.03);
+            border-radius: 12px; border: 1px solid var(--border); display: flex; flex-direction: column;
+            align-items: center; justify-content: center; font-size: 9px; color: var(--elite-silver);
+            cursor: pointer; transition: var(--transit); position: relative; font-family: 'Orbitron', sans-serif;
+        }
+        .filter-slot.active { border-color: var(--elite-gold); color: white; background: rgba(212, 175, 55, 0.1); transform: scale(1.05); }
+        .filter-slot.locked::after { content: '🔒'; position: absolute; top: 5px; right: 5px; font-size: 10px; color: gold; opacity: 0.8; }
+
+        .profile-card { padding: 15px; margin-bottom: 10px; border-radius: 16px; background: rgba(255,255,255,0.02); border: 1px solid var(--border); }
+        .expandable-card .details { display: none; margin-top: 15px; font-size: 12px; color: #aaa; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 10px; }
+        .expandable-card.expanded .details { display: block; animation: fadeIn 0.4s ease; }
+
+        .toggle-container { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; padding: 10px; border-radius: 10px; background: rgba(255,255,255,0.01); }
+        .toggle-switch { width: 40px; height: 20px; background: #333; border-radius: 20px; position: relative; cursor: pointer; transition: var(--transit); }
+        .toggle-switch.on { background: var(--neon-green); box-shadow: 0 0 10px var(--neon-green); }
+        .toggle-switch::after { content: ''; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; background: white; border-radius: 50%; transition: var(--transit); }
+        .toggle-switch.on::after { left: 22px; }
+
+        .lang-btn { background: none; border: 1px solid var(--border); color: #ccc; font-size: 11px; padding: 5px 10px; border-radius: 5px; cursor: pointer; }
+        #lang-modal .lang-option { padding: 15px; font-size: 14px; border-bottom: 1px solid rgba(255,255,255,0.05); cursor: pointer; color: white; }
+        body.amoled-theme { background: black !important; --bg-deep: black; }
+
+        footer {
+            height: 70px; flex-shrink: 0; background: rgba(5, 5, 5, 0.8); border-top: 1px solid var(--border);
+            backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); z-index: 1000;
+        }
+        .tab-bar { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; height: 100%; align-items: center; }
+        .tab-btn {
+            background: none; border: none; color: #aaa; font-size: 10px; font-family: 'Orbitron', sans-serif;
+            text-transform: uppercase; cursor: pointer; transition: var(--transit); display: flex; flex-direction: column; align-items: center; gap: 5px;
+        }
+        .tab-btn.active { color: var(--elite-gold); transform: translateY(-3px); text-shadow: 0 0 10px var(--elite-gold); }
+        .tab-btn span { font-size: 18px; }
+
+        .modal { position: fixed; inset: 0; background: rgba(0,0,0,0.8); display: none; align-items: center; justify-content: center; z-index: 20000; backdrop-filter: blur(15px); }
+        .modal-content { width: 80%; padding: 30px; text-align: center; max-width: 400px; }
+    </style>
+</head>
+<body class="japanese-lang amoled-theme">
+
+    <div class="aurora-bg"></div>
+
+    <div id="splash-screen">
+        <div class="loader-ring"></div>
+        <p style="margin-top: 30px; letter-spacing: 5px; font-size: 12px; color: var(--neon-cyan); font-family: 'Orbitron', sans-serif;" data-lang="initializing">SYSTEM INITIALIZING</p>
+        <p style="font-size: 10px; opacity: 0.4;" data-lang="quantum_enabled">量子暗号化が有効になっています</p>
+    </div>
+
+    <div id="premium-modal" class="modal" onclick="closeModal()">
+        <div class="modal-content glass-panel">
+            <h3 style="color: var(--elite-gold); font-family: 'Orbitron';" data-lang="elite_required">ELITE ACCESS REQUIRED</h3>
+            <p style="font-size: 14px; opacity: 0.8;" data-lang="upgrade_filters">Unlock all AI Filters.</p>
+            <div style="font-size: 24px; font-weight: 700; color: white; margin: 20px 0;">$9.99 / mo</div>
+            <button class="glass-btn" style="width: 100%; background: var(--elite-gold); color: black;" data-lang="upgrade_now">UPGRADE TO ELITE</button>
+        </div>
+    </div>
+
+    <div id="lang-modal" class="modal" onclick="closeLangModal()">
+        <div class="modal-content glass-panel" style="max-width: 300px; padding: 10px; text-align: left;">
+            <div class="lang-option" onclick="setLang('japanese')">🇯🇵 日本語 (Japanese)</div>
+            <div class="lang-option" onclick="setLang('english')">🇺🇸 English</div>
+            <div class="lang-option" onclick="setLang('sinhala')">🇱🇰 සිංහල (Sinhala)</div>
+        </div>
+    </div>
+
+    <div class="app-container" id="app">
+        <header>
+            <div class="logo">ELITE <span style="font-size: 10px; color: white;">V3</span></div>
+            <div style="font-size: 9px; color: #aaa; letter-spacing: 1px;" id="status-indicator">📡 NODE: ONLINE</div>
+        </header>
+
+        <main>
+            <section id="tab-mirror" class="content-section active" style="padding: 10px;">
+                <div id="camera-container" class="glass-panel">
+                    <div class="scan-line"></div>
+                    <video id="video" autoplay muted playsinline></video>
+                    <canvas id="canvas"></canvas>
+                    <div id="capture-btn" onclick="captureSnapshot()"></div>
+                </div>
+                
+                <h4 class="filter-title" data-lang="neural_filters">NEURAL FILTERS (SWIPE ➔)</h4>
+                <div class="filter-bar" id="filter-container"></div>
+            </section>
+
+            <section id="tab-news" class="content-section">
+                <h3 style="color: var(--elite-silver); font-size: 18px; font-family: 'Orbitron';" data-lang="broadcast">BROADCAST</h3>
+                <div id="news-container">
+                    <div class="glass-panel profile-card">
+                        <p style="font-size: 12px; font-weight: 700; color: var(--neon-cyan);" data-lang="notif_initialize">📡 AI NODE INITIALIZED</p>
+                        <p style="font-size: 10px; opacity: 0.6;" data-lang="notif_node_details">System node established on Tokyo server node.</p>
+                    </div>
+                </div>
+            </section>
+
+            <section id="tab-profile" class="content-section">
+                <div class="glass-panel" style="padding: 20px; text-align: center; position: relative; margin-bottom: 20px;">
+                    <div style="width: 50px; height: 50px; border-radius: 50%; background: var(--bg-deep); border: 2px solid var(--border); margin: 0 auto 10px; font-size: 24px; display: flex; align-items: center; justify-content: center;">👤</div>
+                    <div style="font-size: 10px; color: var(--elite-gold); font-family: 'Orbitron';" id="user-id">0x7f4E...D2A</div>
+                    <div style="font-size: 9px; margin-top: 10px; font-family: 'Orbitron'; color: var(--neon-cyan);" data-lang="pending">STATUS: PENDING APPROVED</div>
+                </div>
+
+                <div class="glass-panel profile-card expandable-card expanded" style="border-left: 2px solid var(--neon-cyan);" onclick="toggleCard(this)">
+                    <div style="display: flex; justify-content: space-between;">
+                        <p style="font-size: 12px; font-weight: 700; color: white;">256-Bit Post-Quantum Shield</p>
+                        <span style="font-size: 10px; color: var(--neon-green);">ACTIVE ✅</span>
+                    </div>
+                    <div class="details"><p>SubtleCrypto GCM encryption actively factoring in Kyber v2 parameters.</p></div>
+                </div>
+
+                <div class="glass-panel profile-card expandable-card" onclick="toggleCard(this)">
+                    <div style="display: flex; justify-content: space-between;">
+                        <p style="font-size: 12px; font-weight: 700; color: white;">Deep-Fake Shield</p>
+                        <span style="font-size: 10px; color: var(--neon-cyan);">ACTIVE</span>
+                    </div>
+                    <div class="details"><p>Adversarial noise pattern is added during HD capture.</p></div>
+                </div>
+
+                <h3 style="font-size: 12px; margin: 15px 0 10px; color: #888; font-family: 'Orbitron';" data-lang="settings">SETTINGS</h3>
+                
+                <div class="glass-panel profile-card">
+                    <div class="toggle-container">
+                        <span class="toggle-label" style="font-size: 11px;">GHOST MODE</span>
+                        <div class="toggle-switch" id="ghost-toggle" onclick="toggleGhostMode()"></div>
+                    </div>
+                    <div class="toggle-container" style="border-top: 1px solid rgba(255,255,255,0.03); padding-top: 10px;">
+                        <span class="toggle-label" style="font-size: 11px;" id="theme-label" data-lang="theme_amoled">AMOLED BLACK Theme</span>
+                        <div class="toggle-switch on" id="theme-toggle" onclick="toggleTheme()"></div>
+                    </div>
+                    <div class="toggle-container" style="border-top: 1px solid rgba(255,255,255,0.03); padding-top: 10px; justify-content: space-between;">
+                        <span class="toggle-label" style="font-size: 11px;">LANGUAGE</span>
+                        <button class="lang-btn" onclick="openLangModal()" id="current-lang-display">🇯🇵 / 🇺🇸 / 🇱🇰</button>
+                    </div>
+                </div>
+
+                <button class="glass-btn" style="width: 100%; margin: 20px 0; color: var(--neon-red); border-color: rgba(255,49,49,0.2);" onclick="purgeSession()" data-lang="purge">PURGE SESSION DATA</button>
+            </section>
+        </main>
+
+        <footer class="glass-panel">
+            <nav class="tab-bar">
+                <button class="tab-btn active" onclick="showTab('tab-mirror', this)"><span>📸</span><b data-lang="mirror">Mirror</b></button>
+                <button class="tab-btn" onclick="showTab('tab-news', this)"><span>🔔</span><b data-lang="broadcast">News</b></button>
+                <button class="tab-btn" onclick="showTab('tab-profile', this)"><span>👤</span><b data-lang="profile">Profile</b></button>
+            </nav>
+        </footer>
+    </div>
+
+    <audio id="shutter-sound" preload="auto">
+        <source src="https://cdn.pixabay.com/audio/2022/03/15/audio_1334259b3d.mp3" type="audio/mpeg">
+    </audio>
+
+    <script>
+        const video = document.getElementById('video');
+        const shutterSound = document.getElementById('shutter-sound');
+        
+        const dictionary = {
+            japanese: {
+                initializing: "SYSTEM INITIALIZING...", quantum_enabled: "量子暗号化が有効になっています",
+                neural_filters: "ニューラルフィルター (SWIPE ➔)", mirror: "Mirror", broadcast: "ライブ放送",
+                profile: "Profile", notif_initialize: "📡 AI ノードが初期化されました", notif_node_details: "東京サーバーノードに設立されました。",
+                pending: "STATUS: PENDING LIST", settings: "設定", theme_amoled: "AMOLED BLACK テーマ",
+                elite_required: "ELITE ACCESS REQUIRED", upgrade_now: "アップグレードする", upgrade_filters: "すべてのAIフィルターをアンロックします。", purge: "PURGE SESSION DATA"
+            },
+            english: {
+                initializing: "SYSTEM INITIALIZING...", quantum_enabled: "Quantum Encryption layer enabled.",
+                neural_filters: "NEURAL FILTERS (SWIPE ➔)", mirror: "Mirror", broadcast: "LIVE BROADCAST",
+                profile: "Profile", notif_initialize: "📡 AI NODE INITIALIZED", notif_node_details: "System node established on Tokyo server.",
+                pending: "STATUS: PENDING LIST", settings: "SETTINGS", theme_amoled: "AMOLED BLACK Theme",
+                elite_required: "ELITE ACCESS REQUIRED", upgrade_now: "UPGRADE NOW", upgrade_filters: "Unlock all AI Filters.", purge: "PURGE SESSION DATA"
+            },
+            sinhala: {
+                initializing: "පද්ධතිය සක්‍රීය වෙමින් පවතී...", quantum_enabled: "Quantum අංකනය සක්‍රීය කර ඇත.",
+                neural_filters: "NEURAL ෆිල්ටර් (SWIPE ➔)", mirror: "කැඩපත", broadcast: "සජීවී විකාශනය",
+                profile: "ගිණුම", notif_initialize: "📡 AI නෝඩ් එක සක්‍රීය විය", notif_node_details: "ටෝකියෝ සර්වර් එකේ ස්ථාපිත කර ඇත.",
+                pending: "තත්වය: අනුමැතිය අපේක්ෂාවෙන්", settings: "සැකසුම්", theme_amoled: "AMOLED BLACK තේමාව",
+                elite_required: "ELITE බලපත්‍රය අවශ්‍යයි", upgrade_now: "දැන් ලබාගන්න", upgrade_filters: "ස්ලොට් සියල්ලම Unlock කරගන්න.", purge: "කැෂේ මැකීම"
+            }
+        };
+
+        async function initCamera() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
+                video.srcObject = stream;
+            } catch (err) { alert("Camera Access Required."); }
+        }
+
+        function captureSnapshot() {
+            shutterSound.currentTime = 0; shutterSound.play();
+            alert("Elite HD Capture complete.");
+        }
+
+        function generateFilters() {
+            const container = document.getElementById('filter-container');
+            const defs = [
+                { id: 'clear', name: 'Clear', icon: '✨' }, { id: 'glow', name: 'Glow', icon: '🌟' },
+                { id: 'bw', name: 'B&W', icon: '🎞️' }, { id: 'ar', name: 'Cyber', icon: '⚡' }
+            ];
+            defs.forEach(f => {
+                const div = document.createElement('div');
+                div.className = 'filter-slot';
+                div.innerHTML = `<span style="font-size: 16px;">${f.icon}</span><p style="margin-top:5px;">${f.name}</p>`;
+                div.onclick = () => {
+                    video.style.filter = 'none';
+                    document.querySelectorAll('.filter-slot').forEach(s => s.classList.remove('active'));
+                    div.classList.add('active');
+                    if(f.id === 'glow') video.style.filter = 'contrast(120%) brightness(110%) saturate(130%) sepia(20%)';
+                    if(f.id === 'bw') video.style.filter = 'grayscale(100%) contrast(150%)';
+                };
+                container.appendChild(div);
+            });
+            for (let i = 5; i <= 30; i++) {
+                const div = document.createElement('div');
+                div.className = 'filter-slot locked';
+                div.innerHTML = `<span style="font-size: 16px; opacity: 0.3;">✨</span><p style="margin-top:5px;">AI-${i}</p>`;
+                div.onclick = () => document.getElementById('premium-modal').style.display = 'flex';
+                container.appendChild(div);
+            }
+        }
+
+        function showTab(tabId, btn) {
+            document.querySelectorAll('.content-section').forEach(s => s.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active');
+            btn.classList.add('active');
+        }
+
+        function toggleCard(el) { el.classList.toggle('expanded'); }
+        function closeModal() { document.querySelectorAll('.modal').forEach(m => m.style.display = 'none'); }
+
+        function toggleGhostMode() {
+            const t = document.getElementById('ghost-toggle'); t.classList.toggle('on');
+            localStorage.setItem('ghostMode', t.classList.contains('on'));
+        }
+
+        function toggleTheme() {
+            const t = document.getElementById('theme-toggle'); t.classList.toggle('on');
+            document.body.classList.toggle('amoled-theme', t.classList.contains('on'));
+            localStorage.setItem('amoledTheme', t.classList.contains('on'));
+        }
+
+        function openLangModal() { document.getElementById('lang-modal').style.display = 'flex'; }
+        function closeLangModal() { document.getElementById('lang-modal').style.display = 'none'; }
+        
+        function setLang(langId) {
+            document.body.className = `${langId}-lang ${document.body.classList.contains('amoled-theme') ? 'amoled-theme' : ''}`;
+            const strings = dictionary[langId];
+            document.querySelectorAll('[data-lang]').forEach(el => {
+                const key = el.getAttribute('data-lang');
+                if (strings[key]) { el.tagName === 'B' ? el.innerText = strings[key] : el.innerText = strings[key]; }
+            });
+            localStorage.setItem('preferredLang', langId);
+            closeLangModal();
+        }
+
+        function purgeSession() {
+            if(confirm("Purge all session data? Device Anonymity will be reset.")) {
+                localStorage.clear(); location.reload();
+            }
+        }
+
+        window.onload = () => {
+            generateFilters();
+            const savedLang = localStorage.getItem('preferredLang') || 'japanese'; setLang(savedLang);
+            const isAmoled = localStorage.getItem('amoledTheme');
+            if(isAmoled === 'false') { document.getElementById('theme-toggle').classList.remove('on'); document.body.classList.remove('amoled-theme'); }
+            const isGhost = localStorage.getItem('ghostMode');
+            if(isGhost === 'true') document.getElementById('ghost-toggle').classList.add('on');
+            
+            setTimeout(() => {
+                document.getElementById('splash-screen').style.opacity = '0';
+                setTimeout(() => { document.getElementById('splash-screen').style.display = 'none'; initCamera(); }, 1000);
+            }, 3000);
+        };
+    </script>
+</body>
+</html>
+<script>
+ { name: 'Pure Clear', id: 'clear', icon: '✨' },
+                { name: 'Glow Elite', id: 'glow', icon: '🌟' },
+                { name: 'B&W Classic', id: 'bw', icon: '🎞️' },
+                { name: 'Hearts AR', id: 'ar', icon: '⚡' }
+            ];
+
+            definitions.forEach(f => {
+                const div = document.createElement('div');
+                div.className = 'filter-slot';
+                div.innerHTML = `<span style="font-size: 16px;">${f.icon}</span><p style="margin-top:5px;">${f.name}</p>`;
+                div.onclick = () => applyFilter(f.id, div);
+                container.appendChild(div);
+            });
+
+            for (let i = 5; i <= 50; i++) {
+                const div = document.createElement('div');
+                div.className = 'filter-slot locked';
+                div.innerHTML = `<span style="font-size: 16px; opacity: 0.3;">✨</span><p style="margin-top:5px;">AI-${i}</p>`;
+                div.onclick = () => document.getElementById('premium-modal').style.display = 'flex';
+                container.appendChild(div);
+            }
+        }
+
+        function applyFilter(filterId, el) {
+            currentFilter = filterId;
+            video.style.filter = 'none';
+            document.querySelectorAll('.filter-slot').forEach(s => s.classList.remove('active'));
+            el.classList.add('active');
+
+            if(filterId === 'glow') { video.style.filter = 'contrast(120%) brightness(110%) saturate(130%) sepia(20%)'; }
+            else if(filterId === 'bw') { video.style.filter = 'grayscale(100%) contrast(150%)'; }
+        }
+
+        // --- UI & Setting Logic ---
+
+        function showTab(tabId, btn) {
+            document.querySelectorAll('.content-section').forEach(s => s.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active');
+            btn.classList.add('active');
+        }
+
+        function toggleCard(el) { el.classList.toggle('expanded'); }
+
+        function closeModal() { document.querySelectorAll('.modal').forEach(m => m.style.display = 'none'); }
+
+        // Settings Toggles (Functional Function)
+        function toggleGhostMode() {
+            const toggle = document.getElementById('ghost-toggle');
+            toggle.classList.toggle('on');
+            localStorage.setItem('ghostMode', toggle.classList.contains('on'));
+        }
+
+        function toggleTheme() {
+            const toggle = document.getElementById('theme-toggle');
+            toggle.classList.toggle('on');
+            if(toggle.classList.contains('on')) {
+                document.body.classList.add('amoled-theme');
+                localStorage.setItem('amoledTheme', 'true');
+            } else {
+                document.body.classList.remove('amoled-theme');
+                localStorage.setItem('amoledTheme', 'false');
+            }
+        }
+
+        // functional functional function Functional functional functional Language settings
+        function openLangModal() { document.getElementById('lang-modal').style.display = 'flex'; }
+        function closeLangModal() { document.getElementById('lang-modal').style.display = 'none'; }
+        
+        function setLang(langId) {
+            document.body.className = `${langId}-lang ${document.body.classList.contains('amoled-theme') ? 'amoled-theme' : ''}`;
+            const strings = dictionary[langId];
+            document.querySelectorAll('[data-lang]').forEach(el => {
+                const key = el.getAttribute('data-lang');
+                if (strings[key]) {
+                    // Check if it's a bold tag inside a button (like in the tabs)
+                    if(el.tagName === 'B') {
+                        el.innerText = strings[key];
+                    } else {
+                        el.innerText = strings[key];
+                    }
+                }
+            });
+            localStorage.setItem('preferredLang', langId);
+            closeLangModal();
+        }
+
+        // Purge session logic
+        function purgeSession() {
+            if(confirm("Purge all session data? Device Anonymity will be reset.")) {
+                localStorage.clear();
+                location.reload();
+            }
+        }
+
+        // --- Initialization ---
+        window.onload = () => {
+            generateFilters();
+
+            // functional functional function Functional applying settings from LocalStorage
+            const savedLang = localStorage.getItem('preferredLang') || 'japanese';
+            setLang(savedLang);
+
+            const isAmoled = localStorage.getItem('amoledTheme');
+            if(isAmoled === 'false') {
+                document.getElementById('theme-toggle').classList.remove('on');
+                document.body.classList.remove('amoled-theme');
+            } else if(isAmoled === 'true') {
+                 // Already default but just in case
+                document.getElementById('theme-toggle').classList.add('on');
+                document.body.classList.add('amoled-theme');
+            }
+
+            const isGhost = localStorage.getItem('ghostMode');
+            if(isGhost === 'true') document.getElementById('ghost-toggle').classList.add('on');
+            
+            // Modern Splash timing
+            setTimeout(() => {
+                document.getElementById('splash-screen').style.opacity = '0';
+                setTimeout(() => {
+                    document.getElementById('splash-screen').style.display = 'none';
+                    initCamera();
+                }, 1000);
+            }, 3000);
+        };
+
+    </script>
+</body>
+</html>
+<script>
+on logic
+        function purgeSession() {
+            if(confirm("Purge all session data? Device Anonymity will be reset.")) {
+                localStorage.clear();
+                location.reload();
+            }
+        }
+
+        // --- Initialization ---
+        window.onload = () => {
+            // Apply saved settings
+            const savedLang = localStorage.getItem('preferredLang');
+            if(savedLang) setLang(savedLang);
+
+            const isAmoled = localStorage.getItem('amoledTheme');
+            if(isAmoled === 'false') {
+                document.getElementById('theme-toggle').classList.remove('on');
+                document.body.classList.remove('amoled-theme');
+            }
+
+            const isGhost = localStorage.getItem('ghostMode');
+            if(isGhost === 'true') document.getElementById('ghost-toggle').classList.add('on');
+
+            generateFilters();
+            
+            // Generate Modern Web3-style ID
+            const web3Id = `0x7f${Array(3).fill(0).map(() => Math.random().toString(16).slice(2, 6).toUpperCase()).join('')}...${Math.random().toString(16).slice(2, 5).toUpperCase()}`;
+            document.getElementById('user-id').innerText = web3Id;
+
+            // Modern Splash timing
+            setTimeout(() => {
+                document.getElementById('splash-screen').style.opacity = '0';
+                setTimeout(() => {
+                    document.getElementById('splash-screen').style.display = 'none';
+                    initCamera();
+                }, 1000);
+            }, 3000);
+        };
+
+    </script>
+</body>
+</html>
