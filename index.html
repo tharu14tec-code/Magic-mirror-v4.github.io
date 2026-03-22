@@ -10,7 +10,6 @@
     <style>
         :root {
             --primary-blue: #00f2fe;
-            --secondary-blue: #4facfe;
             --premium-gold: #fec107;
             --premium-pro: #b100ff;
             --amoled-black: #050505;
@@ -27,7 +26,7 @@
         /* --- Global App Container --- */
         .app-container { position: relative; width: 100vw; height: 100vh; display: flex; flex-direction: column; }
 
-        /* --- Header (Shared) --- */
+        /* --- Header --- */
         .app-header { 
             position: absolute; top: 0; left: 0; width: 100%; padding: 20px;
             display: flex; align-items: center; justify-content: space-between; z-index: 500; 
@@ -43,10 +42,9 @@
         .tab-content.active { display: block; animation: fadeIn 0.3s ease-in-out; }
         @keyframes fadeIn { from { opacity: 0; transform: scale(0.98); } to { opacity: 1; transform: scale(1); } }
         
-        /* Mirror Tab is special (Fullscreen Video) */
         #mirror-tab { overflow: hidden; padding-bottom: 0; background: #000; }
 
-        /* --- Mirror / Camera Layout --- */
+        /* --- Mirror / Camera --- */
         #video { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); transition: filter 0.4s ease; }
         #canvas { display: none; }
 
@@ -57,7 +55,7 @@
         .pulse-dot { width: 8px; height: 8px; background: #00ff00; border-radius: 50%; animation: pulse 1.5s infinite; }
         @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.3; } 100% { opacity: 1; } }
 
-        /* --- Filter Carousel --- */
+        /* --- Filter Carousel (Horizontal Scroll) --- */
         .filter-carousel-wrapper {
             position: absolute; bottom: 170px; left: 0; width: 100%; height: 120px; z-index: 100; display: flex; align-items: center;
         }
@@ -238,7 +236,7 @@
             element.classList.add('active');
         }
 
-        // --- 3. DYNAMIC FILTERS ---
+        // --- 3. DYNAMIC FILTERS & HORIZONTAL SCROLL ---
         const filtersData = [
             { name: 'Normal', type: 'free', css: 'none' },
             { name: 'Vintage', type: 'free', css: 'sepia(0.6) contrast(1.1) brightness(0.9)' },
@@ -246,30 +244,54 @@
             { name: 'Cyberpunk', type: 'gold', price: '$4.99', css: 'hue-rotate(110deg) saturate(2) contrast(1.2)' },
             { name: 'Neon Glow', type: 'gold', price: '$4.99', css: 'saturate(2.5) hue-rotate(30deg) contrast(1.4)' },
             { name: 'Glamour', type: 'gold', price: '$4.99', css: 'contrast(1.1) brightness(1.1) saturate(1.3) sepia(0.1)' },
-            { name: 'Matrix', type: 'gold', price: '$4.99', css: 'hue-rotate(80deg) saturate(2) brightness(0.8)' },
             { name: 'Thermal Pro', type: 'pro', price: '$9.99', css: 'invert(1) hue-rotate(180deg) saturate(3)' },
-            { name: 'Ghost', type: 'pro', price: '$9.99', css: 'grayscale(1) invert(1) blur(1px)' },
-            { name: 'Dark Soul', type: 'pro', price: '$9.99', css: 'contrast(1.5) brightness(0.7) grayscale(0.8)' },
-            { name: 'Golden Royal', type: 'pro', price: '$9.99', css: 'sepia(0.8) saturate(2.5) brightness(1.1) contrast(1.2)' }
+            { name: 'Ghost', type: 'pro', price: '$9.99', css: 'grayscale(1) invert(1) blur(1px)' }
         ];
+
+        function createFilterElement(f, index, isActive = false) {
+            let lockedClass = '', iconHtml = '', priceTagHtml = '';
+            if (f.type === 'gold') { lockedClass = 'locked-gold'; iconHtml = '<span class="lock-icon">🔒</span>'; } 
+            else if (f.type === 'pro') { lockedClass = 'locked-pro'; iconHtml = '<span class="lock-icon">👑</span>'; priceTagHtml = `<div class="price-tag">${f.price}</div>`; }
+
+            const activeClass = isActive ? 'active' : '';
+            const bgImg = `https://picsum.photos/100/100?random=${index + 30}`;
+
+            return `
+            <div class="filter-item ${lockedClass} ${activeClass}" onclick="handleFilterClick(${index}, this)" style="background-image: url('${bgImg}');">
+                ${priceTagHtml}${iconHtml}<span class="filter-name">${f.name}</span>
+            </div>`;
+        }
 
         function renderFilters() {
             let html = '';
             filtersData.forEach((f, index) => {
-                let lockedClass = '', iconHtml = '', priceTagHtml = '';
-                if (f.type === 'gold') { lockedClass = 'locked-gold'; iconHtml = '<span class="lock-icon">🔒</span>'; } 
-                else if (f.type === 'pro') { lockedClass = 'locked-pro'; iconHtml = '<span class="lock-icon">👑</span>'; priceTagHtml = `<div class="price-tag">${f.price}</div>`; }
-
-                const isActive = index === 0 ? 'active' : '';
-                const bgImg = `https://picsum.photos/100/100?random=${index + 30}`;
-
-                html += `
-                <div class="filter-item ${lockedClass} ${isActive}" onclick="handleFilterClick(${index}, this)" style="background-image: url('${bgImg}');">
-                    ${priceTagHtml}${iconHtml}<span class="filter-name">${f.name}</span>
-                </div>`;
+                html += createFilterElement(f, index, index === 0);
             });
             carousel.innerHTML = html;
         }
+
+        // Horizontal Infinite Scroll Logic
+        let isGeneratingFilters = false;
+        let generatedCount = 0;
+
+        carousel.addEventListener('scroll', () => {
+            if (carousel.scrollLeft + carousel.clientWidth >= carousel.scrollWidth - 50 && !isGeneratingFilters) {
+                isGeneratingFilters = true;
+                for(let i=0; i<4; i++) {
+                    generatedCount++;
+                    const newIndex = filtersData.length;
+                    const newFilter = { 
+                        name: 'Elite Pack ' + generatedCount, 
+                        type: 'pro', 
+                        price: '$9.99', 
+                        css: `hue-rotate(${Math.random() * 360}deg) saturate(2)` 
+                    };
+                    filtersData.push(newFilter);
+                    carousel.insertAdjacentHTML('beforeend', createFilterElement(newFilter, newIndex));
+                }
+                isGeneratingFilters = false;
+            }
+        });
 
         function handleFilterClick(index, element) {
             const filter = filtersData[index];
@@ -314,49 +336,51 @@
         }
 
         function captureHighQualImage() {
-            canvas.width = video.videoWidth; canvas.height = video.videoHeight;
-            ctx.filter = currentFilterCSS;
-            ctx.save(); ctx.scale(-1, 1); ctx.drawImage(video, -canvas.width, 0, canvas.width, canvas.height); ctx.restore();
-            ctx.filter = 'none';
+            const tCanvas = document.createElement('canvas'); const tCtx = tCanvas.getContext('2d');
+            tCanvas.width = video.videoWidth; tCanvas.height = video.videoHeight;
+            tCtx.filter = currentFilterCSS;
+            tCtx.save(); tCtx.scale(-1, 1); tCtx.drawImage(video, -tCanvas.width, 0, tCanvas.width, tCanvas.height); tCtx.restore();
+            tCtx.filter = 'none';
 
-            let imgData = ctx.getImageData(0, 0, canvas.width, canvas.height); let d = imgData.data;
+            let imgData = tCtx.getImageData(0, 0, tCanvas.width, tCanvas.height); let d = imgData.data;
             for (let i = 0; i < d.length; i += 4) { let n = (Math.random() - 0.5) * 8; d[i] += n; d[i+1] += n; d[i+2] += n; }
-            ctx.putImageData(imgData, 0, 0);
+            tCtx.putImageData(imgData, 0, 0);
 
-            ctx.font = `700 ${canvas.width * 0.04}px 'Poppins'`; ctx.shadowColor = "rgba(0,0,0,0.8)"; ctx.shadowBlur = 10; ctx.fillStyle = "rgba(255,255,255,0.8)";
-            ctx.fillText("Magic Mirror V3 | Zentech AI", canvas.width - 550, canvas.height - 30);
+            // Premium Watermark (Bottom Right)
+            const text1 = "MAGIC MIRROR V3"; const text2 = "Zentech AI Studio - Protected";
+            const fsMain = tCanvas.width * 0.04; const fsSub = tCanvas.width * 0.025; const pad = tCanvas.width * 0.03;
+            
+            tCtx.shadowColor = "rgba(0,0,0,0.9)"; tCtx.shadowBlur = 15;
+            tCtx.font = `700 ${fsMain}px 'Poppins'`; tCtx.fillStyle = "rgba(255,255,255,0.8)";
+            tCtx.fillText(text1, tCanvas.width - tCtx.measureText(text1).width - pad, tCanvas.height - pad - fsSub - 10);
+            tCtx.font = `400 ${fsSub}px 'Poppins'`; tCtx.fillStyle = "rgba(255,255,255,0.6)";
+            tCtx.fillText(text2, tCanvas.width - tCtx.measureText(text2).width - pad, tCanvas.height - pad);
 
-            const link = document.createElement('a'); link.download = `Shielded_${Date.now()}.png`;
-            link.href = canvas.toDataURL("image/png", 1.0); link.click();
+            const link = document.createElement('a'); link.download = `Zentech_Shielded_${Date.now()}.png`;
+            link.href = tCanvas.toDataURL("image/png", 1.0); link.click();
         }
 
-        // --- 6. INFINITE SCROLL (NEWS TAB) ---
+        // --- 6. NEWS INFINITE SCROLL ---
         let isLoadingNews = false; let newsCount = 2;
         const newsTab = document.getElementById('news-tab');
-        
         newsTab.addEventListener('scroll', () => {
             if (newsTab.scrollTop + newsTab.clientHeight >= newsTab.scrollHeight - 50 && !isLoadingNews) {
-                isLoadingNews = true;
-                document.getElementById('loading-spinner').classList.add('active');
-                
-                setTimeout(() => { // Simulate API fetch
+                isLoadingNews = true; document.getElementById('loading-spinner').classList.add('active');
+                setTimeout(() => { 
                     const container = document.getElementById('news-container');
                     for (let i = 0; i < 3; i++) {
-                        newsCount++;
-                        const item = document.createElement('div');
-                        item.className = 'news-item';
-                        item.innerHTML = `<h4 class="news-title">Zentech System Update v${newsCount}.0</h4><p class="news-desc">New backend improvements and security patches applied seamlessly via Infinite Scroll.</p>`;
+                        newsCount++; const item = document.createElement('div'); item.className = 'news-item';
+                        item.innerHTML = `<h4 class="news-title">Zentech System Update v${newsCount}.0</h4><p class="news-desc">New backend improvements applied.</p>`;
                         container.appendChild(item);
                     }
-                    isLoadingNews = false;
-                    document.getElementById('loading-spinner').classList.remove('active');
+                    isLoadingNews = false; document.getElementById('loading-spinner').classList.remove('active');
                 }, 1000);
             }
         });
 
         // --- 7. MULTI-LANGUAGE ---
         const txt = {
-            en: { nm: "Camera", nn: "News", np: "Profile", sh: "SHIELD ACTIVE", cp: "TAP TO CAPTURE", nt: "Latest Updates", wel: "Welcome, Guest", log: "Login to sync your protected photos and filters.", lt: "Select Language" },
+            en: { nm: "Camera", nn: "News", np: "Profile", sh: "SHIELD ACTIVE", cp: "TAP TO CAPTURE", nt: "Latest Updates", wel: "Welcome, Guest", log: "Login to sync your protected photos.", lt: "Select Language" },
             si: { nm: "කැමරාව", nn: "පුවත්", np: "ගිණුම", sh: "ආරක්ෂාව ක්‍රියාත්මකයි", cp: "ඡායාරූපය ගන්න", nt: "අලුත්ම පුවත්", wel: "ආයුබෝවන්!", log: "ඔබේ දත්ත Sync කිරීමට ලොග් වන්න.", lt: "භාෂාව තෝරන්න" }
         };
         function changeLang(l) {
