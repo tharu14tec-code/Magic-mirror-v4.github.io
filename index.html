@@ -1,523 +1,305 @@
 <!DOCTYPE html>
-<html lang="ja">
+<html lang="si">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Magic Mirror V3 - ELITE EDITION</title>
+    <title>Magic Mirror V3 - Elite Web App</title>
     
-    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Noto+Sans+JP:wght@300;500&family=Space+Grotesk:wght@300;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
     
-    <script defer src="https://cdn.jsdelivr.net/npm/face-api.js"></script>
-
     <style>
         :root {
-            --elite-gold: #d4af37;
-            --elite-silver: #c0c0c0;
-            --neon-cyan: #00f3ff;
-            --neon-green: #0f0;
-            --neon-red: #ff3131;
-            --bg-deep: #050505;
-            --glass: rgba(255, 255, 255, 0.05);
-            --border: rgba(255, 255, 255, 0.08);
-            --transit: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            --primary-blue: #00f2fe;
+            --secondary-blue: #4facfe;
+            --amoled-black: #000000;
+            --glass-bg: rgba(255, 255, 255, 0.03);
+            --glass-border: rgba(255, 255, 255, 0.08);
+            --text-main: #ffffff;
+            --text-muted: #888888;
         }
 
-        body, html {
-            margin: 0; padding: 0;
-            background: var(--bg-deep);
-            color: white;
-            font-family: 'Space Grotesk', 'Noto Sans JP', sans-serif;
-            overflow: hidden; height: 100dvh; /* Dynamic Vh for Mobile Address Bar */
-            -webkit-user-select: none; user-select: none;
-            display: flex; flex-direction: column;
+        body { 
+            margin: 0; padding: 0; 
+            background-color: var(--amoled-black); 
+            color: var(--text-main); 
+            font-family: 'Poppins', sans-serif; 
+            overflow-x: hidden; 
         }
 
-        /* Moving Aurora Background */
-        .aurora-bg {
-            position: fixed; inset: 0;
-            background: radial-gradient(circle at 10% 20%, #1a0b2e 0%, transparent 40%),
-                        radial-gradient(circle at 90% 80%, #071a24 0%, transparent 40%);
-            filter: blur(80px); z-index: -1;
-            opacity: 0.6;
-            animation: moveAurora 15s infinite alternate linear;
-            transition: opacity 1s ease;
-        }
-        
-        body.amoled-theme .aurora-bg { opacity: 0; } /* Hide aurora in amoled theme */
-
-        @keyframes moveAurora {
-            0% { transform: scale(1) translate(0, 0); }
-            100% { transform: scale(1.1) translate(15px, 25px); }
+        /* --- App Container --- */
+        .app-container { 
+            max-width: 600px; margin: 0 auto; 
+            padding: 20px; padding-bottom: 100px; 
         }
 
-        /* Modern Liquid Glass Styles */
-        .glass-panel {
-            background: var(--glass);
-            backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
-            border: 1px solid var(--border);
-            border-radius: 20px;
-            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.8);
+        /* --- Fancy Header --- */
+        .app-header { 
+            display: flex; align-items: center; gap: 15px; 
+            margin-top: 10px; margin-bottom: 30px; 
+        }
+        .app-icon { 
+            width: 70px; height: 70px; 
+            background: linear-gradient(135deg, var(--primary-blue) 0%, var(--secondary-blue) 100%); 
+            border-radius: 20px; display: flex; justify-content: center; align-items: center; 
+            font-size: 35px; box-shadow: 0 10px 20px rgba(0, 242, 254, 0.2); 
+        }
+        .app-title { font-size: 24px; font-weight: 700; margin: 0; letter-spacing: 0.5px; }
+        .app-developer { font-size: 14px; color: var(--primary-blue); font-weight: 600; }
+
+        /* --- Tab System --- */
+        .tab-content { display: none; }
+        .tab-content.active { display: block; animation: fadeIn 0.4s ease-in-out; }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(15px); }
+            to { opacity: 1; transform: translateY(0); }
         }
 
-        .glass-btn {
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            color: var(--elite-silver);
-            padding: 12px 24px;
-            border-radius: 12px;
-            cursor: pointer;
-            transition: var(--transit);
-            font-family: 'Orbitron', sans-serif; font-size: 12px; letter-spacing: 1px;
+        /* --- Fancy Mirror / Camera Styles --- */
+        .mirror-wrapper {
+            position: relative; width: 100%; border-radius: 30px; 
+            overflow: hidden; background: #050505; aspect-ratio: 9 / 16;
+            border: 1px solid rgba(0, 242, 254, 0.15);
+            box-shadow: 0 0 40px rgba(0, 242, 254, 0.1);
         }
-        .glass-btn:active { background: rgba(255,255,255,0.1); transform: scale(0.96); }
+        @media (min-width: 768px) { .mirror-wrapper { aspect-ratio: 4 / 3; } }
+        #canvas { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
 
-        /* Splash & Biometric Loader */
-        #splash-screen {
-            position: fixed; inset: 0; background: black;
-            display: flex; flex-direction: column; align-items: center; justify-content: center;
-            z-index: 10000; transition: opacity 1s ease;
+        .shield-status {
+            position: absolute; top: 20px; left: 20px; 
+            background: rgba(0, 0, 0, 0.7); backdrop-filter: blur(10px);
+            padding: 8px 15px; border-radius: 25px; 
+            display: flex; align-items: center; gap: 10px;
+            border: 1px solid rgba(0, 255, 0, 0.3);
+            z-index: 10;
         }
+        .pulse-dot { width: 10px; height: 10px; background: #00ff00; border-radius: 50%; animation: pulse 1.5s infinite; box-shadow: 0 0 10px #00ff00; }
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.3; } 100% { opacity: 1; } }
 
-        .loader-ring {
-            width: 100px; height: 100px;
-            border: 2px solid var(--neon-cyan);
-            border-radius: 35%;
-            animation: rotate 4s infinite linear;
-            box-shadow: 0 0 15px var(--neon-cyan);
+        /* --- Glassmorphism Cards & Buttons --- */
+        .glass-card {
+            background: var(--glass-bg); backdrop-filter: blur(15px);
+            border: 1px solid var(--glass-border); border-radius: 25px;
+            padding: 25px; margin-bottom: 20px;
         }
-
-        @keyframes rotate { 100% { transform: rotate(360deg); } }
-
-        /* Main App Layout */
-        .app-container {
-            display: flex; flex-direction: column; height: 100dvh;
+        .btn-fancy {
+            width: 100%; background: rgba(255, 255, 255, 0.05); color: #ffffff; 
+            border: 1px solid rgba(255, 255, 255, 0.1); padding: 18px; border-radius: 35px; 
+            font-weight: 700; font-size: 16px; cursor: pointer; transition: 0.3s; 
+            backdrop-filter: blur(10px); box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
         }
+        .btn-fancy:hover { background: rgba(255, 255, 255, 0.1); border-color: rgba(255, 255, 255, 0.2); }
+        .btn-fancy:active { transform: scale(0.97); }
 
-        /* Fixed Header */
-        header {
-            height: 60px; flex-shrink: 0;
-            padding: 0 15px; display: flex; justify-content: space-between; align-items: center;
-            border-bottom: 1px solid var(--border); z-index: 100;
+        /* --- Language Buttons --- */
+        .lang-btn {
+            background: rgba(255,255,255,0.05); color: white; border: 1px solid var(--glass-border); 
+            padding: 8px 15px; border-radius: 12px; cursor: pointer; font-family: 'Poppins', sans-serif; transition: 0.3s;
         }
-        .logo { font-family: 'Orbitron', sans-serif; font-size: 14px; color: var(--elite-gold); letter-spacing: 2px; font-weight: 700; }
+        .lang-btn:hover { background: var(--primary-blue); color: #000; border-color: var(--primary-blue); }
 
-        /* Scrollable Main Area */
-        main {
-            flex: 1; overflow-y: auto; overflow-x: hidden;
-            display: flex; flex-direction: column;
-            padding-bottom: 10px; /* Space above footer */
+        /* --- News Card Foundation --- */
+        .news-item { margin-bottom: 15px; padding-bottom: 15px; border-bottom: 1px solid var(--glass-border); }
+        .news-title { font-size: 16px; font-weight: 600; margin: 0 0 5px 0; }
+        .news-desc { font-size: 13px; color: var(--text-muted); margin: 0; line-height: 1.4; }
+
+        /* --- Bottom Navigation --- */
+        .bottom-nav {
+            position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
+            width: 100%; max-width: 600px; background: rgba(0, 0, 0, 0.9);
+            backdrop-filter: blur(20px); display: flex; justify-content: space-around;
+            padding: 18px 0; border-top: 1px solid var(--glass-border); z-index: 1000;
         }
-        .content-section { display: none; padding: 10px; animation: fadeIn 0.4s ease; flex: 1; }
-        .content-section.active { display: flex; flex-direction: column; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-
-        /* Camera Box */
-        #camera-container {
-            position: relative; width: 100%; aspect-ratio: 9/16; max-height: 55vh;
-            overflow: hidden; border-radius: 20px;
-            background: black; border: 1px solid rgba(0, 243, 255, 0.1); flex-shrink: 0;
-        }
-        video { width: 100%; height: 100%; object-fit: cover; }
-        canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 5; pointer-events: none; }
-
-        .shutter-sound { display: none; }
-        #flash { position: absolute; inset: 0; background: white; opacity: 0; z-index: 10; transition: opacity 0.1s ease; pointer-events: none; }
-
-        .scan-line {
-            position: absolute; top: 0; left: 0; width: 100%; height: 2px;
-            background: var(--neon-cyan); opacity: 0.5; box-shadow: 0 0 10px var(--neon-cyan);
-            animation: scanMove 4s infinite linear; z-index: 6;
-        }
-        @keyframes scanMove { 0% { top: 0; } 100% { top: 100%; } }
-
-        #capture-btn {
-            position: absolute; bottom: 15px; left: 50%; transform: translateX(-50%);
-            width: 60px; height: 60px;
-            background: rgba(255, 255, 255, 0.05);
-            border-radius: 50%; border: 3px solid var(--elite-gold);
-            backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
-            z-index: 10; cursor: pointer;
-        }
-        #capture-btn:active { transform: translateX(-50%) scale(0.9); box-shadow: 0 0 15px var(--elite-gold); }
-
-        /* Horizontal Filter Bar (Right below camera) */
-        .filter-title { font-size: 10px; margin: 15px 0 5px; color: #888; font-family: 'Orbitron'; letter-spacing: 1px; }
-        .filter-bar {
-            display: flex; overflow-x: auto; gap: 12px; padding: 5px 0 15px 0;
-            scroll-behavior: smooth; -webkit-overflow-scrolling: touch;
-        }
-        .filter-bar::-webkit-scrollbar { display: none; } /* Hide scrollbar for sleek look */
-        
-        .filter-slot {
-            width: 70px; height: 80px; flex-shrink: 0;
-            background: rgba(255, 255, 255, 0.03); border-radius: 12px; border: 1px solid var(--border);
-            display: flex; flex-direction: column; align-items: center; justify-content: center;
-            font-size: 9px; color: var(--elite-silver); cursor: pointer;
-            transition: var(--transit); position: relative; font-family: 'Orbitron', sans-serif;
-        }
-        .filter-slot:active { border-color: var(--elite-gold); color: white; background: rgba(212, 175, 55, 0.1); transform: scale(1.05); }
-        .filter-slot.locked::after { content: '🔒'; position: absolute; top: 5px; right: 5px; font-size: 10px; color: gold; opacity: 0.8; }
-
-        /* Expandable cards in Profile */
-        .profile-card { padding: 15px; margin-bottom: 10px; border-radius: 16px; background: rgba(255,255,255,0.02); border: 1px solid var(--border); }
-        .profile-card:active { background: rgba(255,255,255,0.05); }
-        .expandable-card .details { display: none; margin-top: 15px; font-size: 12px; color: #aaa; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 10px; }
-        .expandable-card.expanded .details { display: block; animation: fadeIn 0.4s ease; }
-
-        /* Settings Toggle switch */
-        .toggle-container { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; padding: 10px; border-radius: 10px; background: rgba(255,255,255,0.01); }
-        .toggle-label { font-size: 12px; color: #ccc; }
-        .toggle-switch { width: 40px; height: 20px; background: #333; border-radius: 20px; position: relative; cursor: pointer; transition: var(--transit); }
-        .toggle-switch.on { background: var(--neon-green); box-shadow: 0 0 10px var(--neon-green); }
-        .toggle-switch::after { content: ''; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; background: white; border-radius: 50%; transition: var(--transit); }
-        .toggle-switch.on::after { left: 22px; }
-
-        /* Language selector modal styling */
-        .lang-btn { background: none; border: 1px solid var(--border); color: #ccc; font-size: 11px; padding: 5px 10px; border-radius: 5px; cursor: pointer; }
-        #lang-modal .lang-option { padding: 15px; font-size: 14px; border-bottom: 1px solid rgba(255,255,255,0.05); cursor: pointer; color: white; }
-        #lang-modal .lang-option:active { background: rgba(255,255,255,0.05); }
-
-        /* amoLed theme styling (Overrides global bg) */
-        body.amoled-theme { background: black !important; --bg-deep: black; }
-
-        /* Fixed Footer Tabs */
-        footer {
-            height: 70px; flex-shrink: 0;
-            background: rgba(5, 5, 5, 0.8); border-top: 1px solid var(--border);
-            backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
-            z-index: 1000;
-        }
-        .tab-bar { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; height: 100%; align-items: center; }
-        .tab-btn {
-            background: none; border: none; color: #aaa; font-size: 10px;
-            font-family: 'Orbitron', sans-serif; text-transform: uppercase; letter-spacing: 1px;
-            cursor: pointer; transition: var(--transit); display: flex; flex-direction: column; align-items: center; gap: 5px;
-        }
-        .tab-btn.active { color: var(--elite-gold); transform: translateY(-3px); text-shadow: 0 0 10px var(--elite-gold); }
-        .tab-btn span { font-size: 18px; }
-
-        /* Modern Popups (Modals) */
-        .modal {
-            position: fixed; inset: 0; background: rgba(0,0,0,0.8);
-            display: none; align-items: center; justify-content: center; z-index: 20000;
-            backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px);
-        }
-        .modal-content { width: 80%; padding: 30px; text-align: center; max-width: 400px; }
-
+        .nav-item { color: #555; font-size: 12px; display: flex; flex-direction: column; align-items: center; cursor: pointer; transition: 0.3s; font-weight: 600; }
+        .nav-item.active { color: var(--primary-blue); text-shadow: 0 0 10px var(--primary-blue); }
+        .nav-icon { font-size: 24px; margin-bottom: 5px; }
     </style>
 </head>
-<body class="japanese-lang amoled-theme"> <div class="aurora-bg"></div>
+<body>
 
-    <div id="splash-screen">
-        <div class="loader-ring"></div>
-        <p style="margin-top: 30px; letter-spacing: 5px; font-size: 12px; color: var(--neon-cyan); font-family: 'Orbitron', sans-serif;" data-lang="initializing">SYSTEM INITIALIZING</p>
-        <p style="font-size: 10px; opacity: 0.4;" data-lang="quantum_enabled">量子暗号化が有効になっています</p>
-    </div>
-
-    <div id="capture-toast" class="modal" onclick="closeCaptureToast()">
-        <div class="modal-content glass-panel" style="border-color: var(--neon-cyan); max-width: 300px; padding: 25px;" onclick="event.stopPropagation()">
-            <div style="font-size: 35px; margin-bottom: 10px;">📸</div>
-            <h3 style="color: var(--neon-cyan); font-family: 'Orbitron'; margin: 0 0 10px 0;" data-lang="capture_title">CAPTURE SECURED</h3>
-            <p style="font-size: 11px; color: #ccc; margin-bottom: 15px;" data-lang="capture_msg">Image downloaded to your device gallery.</p>
-            <img id="capture-preview" style="width: 100%; border-radius: 12px; border: 1px solid rgba(0, 243, 255, 0.3); margin-bottom: 15px; display: none;" />
-            <button class="glass-btn" style="width: 100%; background: rgba(0, 243, 255, 0.1); border-color: var(--neon-cyan); color: white;" onclick="closeCaptureToast()">OK</button>
-        </div>
-    </div>
-
-    <div id="premium-modal" class="modal" onclick="closeModal()">
-        <div class="modal-content glass-panel">
-            <h3 style="color: var(--elite-gold); font-family: 'Orbitron';" data-lang="elite_required">ELITE ACCESS REQUIRED</h3>
-            <p style="font-size: 14px; opacity: 0.8;" data-lang="upgrade_filters">Unlock all AI Filters.</p>
-            <div style="font-size: 24px; font-weight: 700; color: white; margin: 20px 0;">$9.99 / mo</div>
-            <button class="glass-btn" style="width: 100%; background: var(--elite-gold); color: black;" data-lang="upgrade_now">UPGRADE TO ELITE</button>
-        </div>
-    </div>
-
-    <div id="lang-modal" class="modal" onclick="closeLangModal()">
-        <div class="modal-content glass-panel" style="max-width: 300px; padding: 10px; text-align: left;">
-            <div class="lang-option" onclick="setLang('japanese')">🇯🇵 日本語 (Japanese)</div>
-            <div class="lang-option" onclick="setLang('english')">🇺🇸 English</div>
-            <div class="lang-option" onclick="setLang('sinhala')">🇱🇰 සිංහල (Sinhala)</div>
-        </div>
-    </div>
-
-    <div class="app-container" id="app">
+    <div class="app-container">
         
-        <header>
-            <div class="logo">ELITE <span style="font-size: 10px; color: white;">V3</span></div>
-            <div style="font-size: 9px; color: #aaa; letter-spacing: 1px;" id="status-indicator">📡 NODE: ONLINE</div>
+        <header class="app-header">
+            <div class="app-icon">✨</div>
+            <div>
+                <h1 class="app-title">Magic Mirror V3</h1>
+                <div class="app-developer">Zentech AI Studio</div>
+            </div>
         </header>
 
-        <main>
-            <section id="tab-mirror" class="content-section active" style="padding: 10px;">
-                <div id="camera-container" class="glass-panel">
-                    <div class="scan-line"></div>
-                    <div id="flash"></div> <video id="video" autoplay muted playsinline></video>
-                    <canvas id="canvas"></canvas>
-                    <div id="capture-btn" onclick="captureSnapshot()"></div>
+        <div id="mirror-tab" class="tab-content active">
+            <div class="mirror-wrapper">
+                <video id="video" autoplay playsinline style="display: none;"></video>
+                <canvas id="canvas"></canvas>
+                <div class="shield-status">
+                    <div class="pulse-dot"></div>
+                    <span id="txt-shield" style="font-size: 12px; color: #00ff00; font-weight: 700; letter-spacing: 0.5px;">SHIELD ACTIVE</span>
                 </div>
-                
-                <h4 class="filter-title" data-lang="neural_filters">NEURAL FILTERS (SWIPE ➔)</h4>
-                <div class="filter-bar" id="filter-container">
-                    </div>
-            </section>
+            </div>
+            <button class="btn-fancy" id="txt-capture" style="margin-top: 25px;" onclick="captureHighQualImage()">📸 Capture Shielded Photo</button>
+            <p id="txt-desc" style="text-align: center; font-size: 12px; color: var(--text-muted); margin-top: 15px;">Adversarial noise is injected to prevent AI facial cloning.</p>
+        </div>
 
-            <section id="tab-news" class="content-section">
-                <h3 style="color: var(--elite-silver); font-size: 18px; font-family: 'Orbitron';" data-lang="broadcast">BROADCAST</h3>
+        <div id="news-tab" class="tab-content">
+            <div class="glass-card">
+                <h3 id="txt-news-title" style="margin-top: 0; color: var(--primary-blue);">Latest Updates</h3>
+                
                 <div id="news-container">
-                    <div class="glass-panel profile-card">
-                        <p style="font-size: 12px; font-weight: 700; color: var(--neon-cyan);" data-lang="notif_initialize">📡 AI NODE INITIALIZED</p>
-                        <p style="font-size: 10px; opacity: 0.6;" data-lang="notif_node_details">System node established on Tokyo server node.</p>
+                    <div class="news-item">
+                        <h4 class="news-title">Magic Mirror Global Launch</h4>
+                        <p class="news-desc">The next generation of privacy-focused AR is finally here.</p>
+                    </div>
+                    <div class="news-item" style="border: none; padding-bottom: 0;">
+                        <h4 class="news-title">New Shield Algorithm</h4>
+                        <p class="news-desc">Zentech introduces enhanced mathematical noise injection.</p>
                     </div>
                 </div>
-            </section>
+            </div>
+        </div>
 
-            <section id="tab-profile" class="content-section">
-                <div class="glass-panel" style="padding: 20px; text-align: center; position: relative; margin-bottom: 20px;">
-                    <div style="width: 50px; height: 50px; border-radius: 50%; background: var(--bg-deep); border: 2px solid var(--border); margin: 0 auto 10px; font-size: 24px; display: flex; align-items: center; justify-content: center;">👤</div>
-                    <div style="font-size: 10px; color: var(--elite-gold); font-family: 'Orbitron';" id="user-id">0x7f4E88...D2A</div>
-                    <div style="font-size: 9px; margin-top: 10px; font-family: 'Orbitron'; color: var(--neon-cyan);" data-lang="pending">STATUS: PENDING APPROVED</div>
-                </div>
-
-                <div class="glass-panel profile-card expandable-card expanded" style="border-left: 2px solid var(--neon-cyan);" onclick="toggleCard(this)">
-                    <div style="display: flex; justify-content: space-between;">
-                        <p style="font-size: 12px; font-weight: 700; color: white;">256-Bit Post-Quantum Shield</p>
-                        <span style="font-size: 10px; color: var(--neon-green);">ACTIVE ✅</span>
-                    </div>
-                    <div class="details">
-                        <p>SubtleCrypto GCM encryption actively factoring in Kyber v2 parameters. Immune to simulated quantum node factoring attacks on all session metadata.</p>
-                    </div>
-                </div>
-
-                <div class="glass-panel profile-card expandable-card" onclick="toggleCard(this)">
-                    <div style="display: flex; justify-content: space-between;">
-                        <p style="font-size: 12px; font-weight: 700; color: white;">Deep-Fake Shield</p>
-                        <span style="font-size: 10px; color: var(--neon-cyan);">ACTIVE</span>
-                    </div>
-                    <div class="details">
-                        <p>No Images are stored on-server. Adversarial noise pattern is added during on-device HD capture to prevent AI deep-fake algorithms.</p>
-                    </div>
-                </div>
-
-                <h3 style="font-size: 12px; margin: 15px 0 10px; color: #888; font-family: 'Orbitron';" data-lang="settings">SETTINGS</h3>
+        <div id="profile-tab" class="tab-content">
+            <div class="glass-card" style="text-align: center;">
+                <div style="width: 80px; height: 80px; background: #111; border-radius: 50%; margin: 0 auto 15px; display: flex; align-items: center; justify-content: center; font-size: 35px; border: 2px solid var(--primary-blue); box-shadow: 0 0 20px rgba(0, 242, 254, 0.1);">👤</div>
+                <h3 id="txt-welcome" style="margin-bottom: 5px;">Welcome, Guest</h3>
+                <p id="txt-login-msg" style="color: var(--text-muted); font-size: 13px; margin-bottom: 25px;">Login to sync your protected photos.</p>
                 
-                <div class="glass-panel profile-card">
-                    <div class="toggle-container">
-                        <span class="toggle-label" style="font-size: 11px;">GHOST MODE (Anonymity Protocol)</span>
-                        <div class="toggle-switch" id="ghost-toggle" onclick="toggleGhostMode()"></div>
-                    </div>
-                    <div class="toggle-container" style="border-top: 1px solid rgba(255,255,255,0.03); padding-top: 10px;">
-                        <span class="toggle-label" style="font-size: 11px;" id="theme-label" data-lang="theme_amoled">AMOLED BLACK Theme</span>
-                        <div class="toggle-switch on" id="theme-toggle" onclick="toggleTheme()"></div>
-                    </div>
-                    <div class="toggle-container" style="border-top: 1px solid rgba(255,255,255,0.03); padding-top: 10px; justify-content: space-between;">
-                        <span class="toggle-label" style="font-size: 11px;">LANGUAGE</span>
-                        <button class="lang-btn" onclick="openLangModal()" id="current-lang-display">🇯🇵 / 🇺🇸 / 🇱🇰</button>
-                    </div>
+                <button class="btn-fancy" style="background: rgba(219, 68, 55, 0.1); border-color: #db4437; color: #db4437; margin-bottom: 12px; font-size: 14px; padding: 14px;">Log in with Google</button>
+                <button class="btn-fancy" style="background: rgba(66, 103, 178, 0.1); border-color: #4267B2; color: #4267B2; font-size: 14px; padding: 14px;">Log in with Facebook</button>
+            </div>
+
+            <div class="glass-card" style="margin-top: 20px; text-align: center;">
+                <h4 id="txt-lang-title" style="margin-top: 0; margin-bottom: 15px; font-size: 13px; color: var(--text-muted);">Select Language / භාෂාව තෝරන්න</h4>
+                <div style="display: flex; gap: 10px; justify-content: center;">
+                    <button class="lang-btn" onclick="changeLang('si')">සිංහල</button>
+                    <button class="lang-btn" onclick="changeLang('en')">English</button>
+                    <button class="lang-btn" onclick="changeLang('ja')">日本語</button>
                 </div>
-
-                <button class="glass-btn" style="width: 100%; margin: 20px 0; color: var(--neon-red); border-color: rgba(255,49,49,0.2);" onclick="purgeSession()">PURGE SESSION DATA</button>
-            </section>
-        </main>
-
-        <footer class="glass-panel">
-            <nav class="tab-bar">
-                <button class="tab-btn active" onclick="showTab('tab-mirror', this)"><span class="icon">📸</span><b data-lang="mirror">Mirror</b></button>
-                <button class="tab-btn" onclick="showTab('tab-news', this)"><span class="icon">🔔</span><b data-lang="broadcast">News</b></button>
-                <button class="tab-btn" onclick="showTab('tab-profile', this)"><span class="icon">👤</span><b data-lang="profile">Profile</b></button>
-            </nav>
-        </footer>
+            </div>
+        </div>
 
     </div>
 
-    <audio id="shutter-sound" preload="auto">
-        <source src="https://cdn.pixabay.com/audio/2022/03/15/audio_1334259b3d.mp3" type="audio/mpeg">
-    </audio>
+    <nav class="bottom-nav">
+        <div class="nav-item active" onclick="showTab('mirror-tab', this)">
+            <span class="nav-icon">🪞</span><span id="nav-mirror">Mirror</span>
+        </div>
+        <div class="nav-item" onclick="showTab('news-tab', this)">
+            <span class="nav-icon">📰</span><span id="nav-news">News</span>
+        </div>
+        <div class="nav-item" onclick="showTab('profile-tab', this)">
+            <span class="nav-icon">👤</span><span id="nav-profile">Profile</span>
+        </div>
+    </nav>
 
     <script>
-        // --- Single-File Magic Mirror JS (The Engine) ---
-
+        // --- Core Elements ---
         const video = document.getElementById('video');
-        const shutterSound = document.getElementById('shutter-sound');
-        const flash = document.getElementById('flash');
-        
-        let currentFilter = 'clear';
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
 
-        // 🌐 Language Dictionary (Japanese, English, Sinhala)
-        const dictionary = {
-            japanese: {
-                initializing: "SYSTEM INITIALIZING...", quantum_enabled: "量子暗号化が有効になっています",
-                neural_filters: "ニューラルフィルター (SWIPE ➔)", mirror: "Mirror", broadcast: "ライブ放送",
-                profile: "Profile", notif_initialize: "📡 AI ノードが初期化されました", notif_node_details: "東京サーバーノードに設立されました。",
-                pending: "STATUS: PENDING LIST", settings: "設定", theme_amoled: "AMOLED BLACK テーマ",
-                elite_required: "ELITE ACCESS REQUIRED", upgrade_now: "アップグレードする", upgrade_filters: "すべてのAIフィルターをアンロックします。", purge: "PURGE SESSION DATA",
-                capture_title: "キャプチャ成功", capture_msg: "画像がギャラリーに保存されました。"
-            },
-            english: {
-                initializing: "SYSTEM INITIALIZING...", quantum_enabled: "Quantum Encryption layer enabled.",
-                neural_filters: "NEURAL FILTERS (SWIPE ➔)", mirror: "Mirror", broadcast: "LIVE BROADCAST",
-                profile: "Profile", notif_initialize: "📡 AI NODE INITIALIZED", notif_node_details: "System node established on Tokyo server.",
-                pending: "STATUS: PENDING LIST", settings: "SETTINGS", theme_amoled: "AMOLED BLACK Theme",
-                elite_required: "ELITE ACCESS REQUIRED", upgrade_now: "UPGRADE NOW", upgrade_filters: "Unlock all AI Filters.", purge: "PURGE SESSION DATA",
-                capture_title: "CAPTURE SECURED", capture_msg: "Image downloaded to your device gallery."
-            },
-            sinhala: {
-                initializing: "පද්ධතිය සක්‍රීය වෙමින් පවතී...", quantum_enabled: "Quantum අංකනය සක්‍රීය කර ඇත.",
-                neural_filters: "NEURAL ෆිල්ටර් (SWIPE ➔)", mirror: "කැඩපත", broadcast: "සජීවී විකාශනය",
-                profile: "ගිණුම", notif_initialize: "📡 AI නෝඩ් එක සක්‍රීය විය", notif_node_details: "ටෝකියෝ සර්වර් එකේ ස්ථාපිත කර ඇත.",
-                pending: "තත්වය: අනුමැතිය අපේක්ෂාවෙන්", settings: "සැකසුම්", theme_amoled: "AMOLED BLACK තේමාව",
-                elite_required: "ELITE බලපත්‍රය අවශ්‍යයි", upgrade_now: "දැන් ලබාගන්න", upgrade_filters: "ස්ලොට් සියල්ලම Unlock කරගන්න.", purge: "කැෂේ මැකීම",
-                capture_title: "ඡායාරූපය සුරැකිණි", capture_msg: "ඔබගේ දුරකථනයට බාගත කිරීම සම්පූර්ණයි."
-            }
-        };
-
-        async function initCamera() {
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
-                video.srcObject = stream;
-            } catch (err) { alert("Camera Access Required."); }
-        }
-
-        // 📸 REAL Capture, Real DEEP-FAKE Noise, & Real Download Logic
-        function captureSnapshot() {
-            // Flash Effect
-            if(flash) { flash.style.opacity = '1'; setTimeout(() => flash.style.opacity = '0', 100); }
-            shutterSound.currentTime = 0; shutterSound.play();
-            
-            // Create hidden canvas to draw image
-            const tempCanvas = document.createElement('canvas');
-            tempCanvas.width = video.videoWidth;
-            tempCanvas.height = video.videoHeight;
-            const ctx = tempCanvas.getContext('2d');
-            
-            // Apply current filter to canvas context
-            if(currentFilter === 'glow') ctx.filter = 'contrast(120%) brightness(110%) saturate(130%) sepia(20%)';
-            else if(currentFilter === 'bw') ctx.filter = 'grayscale(100%) contrast(150%)';
-            else ctx.filter = 'none';
-
-            // Draw Video Frame to Canvas
-            ctx.drawImage(video, 0, 0, tempCanvas.width, tempCanvas.height);
-            
-            // 🛡️ REAL DEEP-FAKE SHIELD (Adversarial Noise Injection)
-            // මේකෙන් ෆොටෝ එකේ pixels වලට AI-blocking රටාවක් එකතු කරනවා
-            const imageData = ctx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
-            const data = imageData.data;
-            for (let i = 0; i < data.length; i += 4) {
-                // ඉතා සියුම් Noise එකක් (මිනිස් ඇසට නොපෙනෙන තරම්) එකතු කිරීම
-                if (Math.random() > 0.5) {
-                    const noise = (Math.random() - 0.5) * 8; 
-                    data[i] = Math.min(255, Math.max(0, data[i] + noise));     // Red
-                    data[i+1] = Math.min(255, Math.max(0, data[i+1] + noise)); // Green
-                    data[i+2] = Math.min(255, Math.max(0, data[i+2] + noise)); // Blue
-                }
-            }
-            ctx.putImageData(imageData, 0, 0); // Noise එකත් එක්කම ආයෙත් Canvas එකට දානවා
-            // ---------------------------------------------------------
-            
-            // Convert Canvas to usable data
-            const dataUrl = tempCanvas.toDataURL('image/png');
-            
-            // Auto Download Logic (creating a dummy link)
-            const a = document.createElement('a');
-            a.href = dataUrl;
-            a.download = `Elite_Secure_${new Date().getTime()}.png`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-
-            // Show custom Elite Popup with preview
-            document.getElementById('capture-preview').src = dataUrl;
-            document.getElementById('capture-preview').style.display = 'block';
-            document.getElementById('capture-toast').style.display = 'flex';
-        }
-
-        function closeCaptureToast() {
-            document.getElementById('capture-toast').style.display = 'none';
-        }
-
-        function generateFilters() {
-            const container = document.getElementById('filter-container');
-            const defs = [
-                { id: 'clear', name: 'Clear', icon: '✨' }, { id: 'glow', name: 'Glow', icon: '🌟' },
-                { id: 'bw', name: 'B&W', icon: '🎞️' }, { id: 'ar', name: 'Cyber', icon: '⚡' }
-            ];
-            defs.forEach(f => {
-                const div = document.createElement('div');
-                div.className = 'filter-slot';
-                div.innerHTML = `<span style="font-size: 16px;">${f.icon}</span><p style="margin-top:5px;">${f.name}</p>`;
-                div.onclick = () => {
-                    video.style.filter = 'none';
-                    document.querySelectorAll('.filter-slot').forEach(s => s.classList.remove('active'));
-                    div.classList.add('active');
-                    currentFilter = f.id; // Save current filter
-                    if(f.id === 'glow') video.style.filter = 'contrast(120%) brightness(110%) saturate(130%) sepia(20%)';
-                    if(f.id === 'bw') video.style.filter = 'grayscale(100%) contrast(150%)';
-                };
-                container.appendChild(div);
-            });
-            for (let i = 5; i <= 30; i++) {
-                const div = document.createElement('div');
-                div.className = 'filter-slot locked';
-                div.innerHTML = `<span style="font-size: 16px; opacity: 0.3;">✨</span><p style="margin-top:5px;">AI-${i}</p>`;
-                div.onclick = () => document.getElementById('premium-modal').style.display = 'flex';
-                container.appendChild(div);
-            }
-        }
-
-        function showTab(tabId, btn) {
-            document.querySelectorAll('.content-section').forEach(s => s.classList.remove('active'));
-            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        // --- Tab Logic ---
+        function showTab(tabId, element) {
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
             document.getElementById(tabId).classList.add('active');
-            btn.classList.add('active');
+            element.classList.add('active');
         }
 
-        function toggleCard(el) { el.classList.toggle('expanded'); }
-        function closeModal() { document.querySelectorAll('.modal').forEach(m => m.style.display = 'none'); }
-
-        function toggleGhostMode() {
-            const t = document.getElementById('ghost-toggle'); t.classList.toggle('on');
-            localStorage.setItem('ghostMode', t.classList.contains('on'));
-        }
-
-        function toggleTheme() {
-            const t = document.getElementById('theme-toggle'); t.classList.toggle('on');
-            document.body.classList.toggle('amoled-theme', t.classList.contains('on'));
-            localStorage.setItem('amoledTheme', t.classList.contains('on'));
-        }
-
-        function openLangModal() { document.getElementById('lang-modal').style.display = 'flex'; }
-        function closeLangModal() { document.getElementById('lang-modal').style.display = 'none'; }
-        
-        function setLang(langId) {
-            document.body.className = `${langId}-lang ${document.body.classList.contains('amoled-theme') ? 'amoled-theme' : ''}`;
-            const strings = dictionary[langId];
-            document.querySelectorAll('[data-lang]').forEach(el => {
-                const key = el.getAttribute('data-lang');
-                if (strings[key]) { el.tagName === 'B' ? el.innerText = strings[key] : el.innerText = strings[key]; }
-            });
-            localStorage.setItem('preferredLang', langId);
-            closeLangModal();
-        }
-
-        function purgeSession() {
-            if(confirm("Purge all session data? Device Anonymity will be reset.")) {
-                localStorage.clear(); location.reload();
+        // --- High-Res Camera & Shield Logic ---
+        async function startMirror() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { facingMode: "user", width: { ideal: 3840 }, height: { ideal: 2160 } } 
+                });
+                video.srcObject = stream;
+                video.onloadedmetadata = () => {
+                    canvas.width = video.videoWidth;
+                    canvas.height = video.videoHeight;
+                    video.play();
+                    renderFrame();
+                };
+            } catch (err) {
+                console.log("High-res failed, using default.");
+                navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } })
+                    .then(s => { video.srcObject = s; video.play(); renderFrame(); });
             }
         }
 
-        window.onload = () => {
-            generateFilters();
-            const savedLang = localStorage.getItem('preferredLang') || 'japanese'; setLang(savedLang);
-            const isAmoled = localStorage.getItem('amoledTheme');
-            if(isAmoled === 'false') { document.getElementById('theme-toggle').classList.remove('on'); document.body.classList.remove('amoled-theme'); }
-            const isGhost = localStorage.getItem('ghostMode');
-            if(isGhost === 'true') document.getElementById('ghost-toggle').classList.add('on');
+        function renderFrame() {
+            if (!video.videoWidth) return;
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            let imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            let data = imgData.data;
+            // Shield Noise Injection
+            for (let i = 0; i < data.length; i += 4) {
+                let noise = (Math.random() - 0.5) * 6;
+                data[i] += noise; data[i+1] += noise; data[i+2] += noise;
+            }
+            ctx.putImageData(imgData, 0, 0);
+            requestAnimationFrame(renderFrame);
+        }
+
+        // --- Premium Capture with Watermark ---
+        function captureHighQualImage() {
+            const tCanvas = document.createElement('canvas');
+            const tCtx = tCanvas.getContext('2d');
+            tCanvas.width = video.videoWidth; tCanvas.height = video.videoHeight;
             
-            setTimeout(() => {
-                document.getElementById('splash-screen').style.opacity = '0';
-                setTimeout(() => { document.getElementById('splash-screen').style.display = 'none'; initCamera(); }, 1000);
-            }, 3000);
+            // Draw mirrored image for selfie perspective
+            tCtx.save();
+            tCtx.scale(-1, 1);
+            tCtx.drawImage(video, -tCanvas.width, 0, tCanvas.width, tCanvas.height);
+            tCtx.restore();
+
+            // Inject Noise
+            let imgData = tCtx.getImageData(0, 0, tCanvas.width, tCanvas.height);
+            let d = imgData.data;
+            for (let i = 0; i < d.length; i += 4) {
+                let n = (Math.random() - 0.5) * 6;
+                d[i] += n; d[i+1] += n; d[i+2] += n;
+            }
+            tCtx.putImageData(imgData, 0, 0);
+
+            // Add Elite Watermark
+            const fSize = tCanvas.width * 0.04;
+            tCtx.font = `700 ${fSize}px 'Poppins', sans-serif`;
+            const text = "Magic Mirror V3 | Zentech AI Studio";
+            const x = tCanvas.width - tCtx.measureText(text).width - (tCanvas.width * 0.03);
+            const y = tCanvas.height - (tCanvas.height * 0.03);
+            
+            tCtx.shadowColor = "rgba(0,0,0,0.8)"; tCtx.shadowBlur = 10;
+            tCtx.fillStyle = "rgba(255,255,255,0.8)";
+            tCtx.fillText(text, x, y);
+
+            // Download
+            const link = document.createElement('a');
+            link.download = `Zentech_Shielded_${Date.now()}.png`;
+            link.href = tCanvas.toDataURL("image/png", 1.0);
+            link.click();
+        }
+
+        // --- Multi-Language Logic ---
+        const langs = {
+            en: { m: "Mirror", n: "News", p: "Profile", sh: "SHIELD ACTIVE", cap: "📸 Capture Shielded Photo", desc: "Adversarial noise is injected to prevent AI facial cloning.", nt: "Latest Updates", wel: "Welcome, Guest", log: "Login to sync your protected photos.", lt: "Select Language" },
+            si: { m: "කන්නාඩිය", n: "පුවත්", p: "ගිණුම", sh: "ආරක්ෂාව ක්‍රියාත්මකයි", cap: "📸 සුරක්ෂිත ඡායාරූපයක් ගන්න", desc: "AI මගින් මුහුණ හඳුනාගැනීම වැළැක්වීමට විශේෂ Noise එකක් එකතු කර ඇත.", nt: "අලුත්ම පුවත්", wel: "ආයුබෝවන්!", log: "ඡායාරූප Sync කිරීමට ලොග් වන්න.", lt: "භාෂාව තෝරන්න" },
+            ja: { m: "ミラー", n: "ニュース", p: "プロファイル", sh: "シールド有効", cap: "📸 保護された写真を撮る", desc: "AIによる顔のクローン作成を防ぐためにノイズが注入されています。", nt: "最新情報", wel: "ようこそ", log: "写真を同期するにはログインしてください。", lt: "言語を選択" }
         };
+
+        function changeLang(l) {
+            document.getElementById('nav-mirror').innerText = langs[l].m;
+            document.getElementById('nav-news').innerText = langs[l].n;
+            document.getElementById('nav-profile').innerText = langs[l].p;
+            document.getElementById('txt-shield').innerText = langs[l].sh;
+            document.getElementById('txt-capture').innerText = langs[l].cap;
+            document.getElementById('txt-desc').innerText = langs[l].desc;
+            document.getElementById('txt-news-title').innerText = langs[l].nt;
+            document.getElementById('txt-welcome').innerText = langs[l].wel;
+            document.getElementById('txt-login-msg').innerText = langs[l].log;
+            document.getElementById('txt-lang-title').innerText = langs[l].lt;
+        }
+
+        // Auto-start
+        window.addEventListener('load', startMirror);
     </script>
 </body>
 </html>
